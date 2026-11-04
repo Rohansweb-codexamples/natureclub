@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Edit Nature Club feed updates without editing code.">
+  <meta name="theme-color" content="#245b3a">
+  <title>Edit Feed | Nature Club</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #203328;
+      background: #f4f7f1;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 2rem 1rem; color: white; background: #245b3a; }
+    header > div, main { width: min(100% - 1rem, 760px); margin-inline: auto; }
+    h1 { margin: 0; font-size: clamp(1.7rem, 5vw, 2.4rem); }
+    header p { margin: .4rem 0 0; color: #e4f0e2; }
+    main { padding-block: 1.5rem 3rem; }
+    .panel, .item { margin-block: 1rem; padding: 1.2rem; border: 1px solid #dce5d9; border-radius: .8rem; background: white; }
+    h2 { margin-top: 0; font-size: 1.25rem; }
+    label { display: block; margin-block: .8rem .3rem; font-weight: 650; }
+    input, textarea { width: 100%; padding: .7rem; border: 1px solid #aebcaf; border-radius: .45rem; color: inherit; background: white; font: inherit; }
+    textarea { min-height: 7rem; resize: vertical; }
+    button, .button-link { display: inline-block; margin: .75rem .4rem 0 0; padding: .65rem .9rem; border: 1px solid #245b3a; border-radius: .5rem; color: white; background: #245b3a; font: inherit; font-weight: 650; text-decoration: none; cursor: pointer; }
+    button.secondary, .button-link.secondary { color: #245b3a; background: white; }
+    button.danger { border-color: #8d2929; background: #8d2929; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #d89c35; outline-offset: 2px; }
+    .note, #status { color: #53645a; line-height: 1.5; }
+    #status { min-height: 1.5rem; }
+    .item h3 { margin: .25rem 0; }
+    .item p { white-space: pre-wrap; line-height: 1.5; }
+    .item-meta { color: #53645a; font-size: .9rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: .3rem; }
+    @media (max-width: 480px) { button, .button-link { margin-top: .5rem; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Nature Club Feed Editor</h1>
+      <p>Add, change, or remove updates using this form — no code editing needed.</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" aria-labelledby="file-heading">
+      <h2 id="file-heading">Open your feed file</h2>
+      <p class="note">Choose the current <code>feed.json</code> from your device to edit existing updates. When finished, download the updated file and use it to replace <code>feed.json</code> in your website repository.</p>
+      <label for="file-input">Choose feed.json</label>
+      <input id="file-input" type="file" accept="application/json,.json">
+      <button id="download" type="button" class="secondary">Download updated feed.json</button>
+      <a class="button-link secondary" href="feed.html">View feed</a>
+      <p id="status" role="status" aria-live="polite">No feed file loaded yet. You can also start a new feed below.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="form-heading">
+      <h2 id="form-heading">Add an update</h2>
+      <form id="post-form">
+        <label for="title">Title</label>
+        <input id="title" name="title" required maxlength="120" placeholder="e.g. Saturday nature walk">
+        <label for="date">Date</label>
+        <input id="date" name="date" type="date" required>
+        <label for="category">Category (optional)</label>
+        <input id="category" name="category" maxlength="50" placeholder="e.g. Event">
+        <label for="content">Update</label>
+        <textarea id="content" name="content" required maxlength="5000" placeholder="Write your update here…"></textarea>
+        <button id="save-post" type="submit">Add update</button>
+        <button id="cancel-edit" class="secondary" type="button" hidden>Cancel edit</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="updates-heading">
+      <h2 id="updates-heading">Updates in this file</h2>
+      <div id="items"></div>
+    </section>
+  </main>
+
+  <script>
+    const fileInput = document.querySelector("#file-input");
+    const form = document.querySelector("#post-form");
+    const itemsElement = document.querySelector("#items");
+    const status = document.querySelector("#status");
+    const saveButton = document.querySelector("#save-post");
+    const cancelButton = document.querySelector("#cancel-edit");
+    let items = [];
+    let editingIndex = null;
+
+    function setStatus(message) { status.textContent = message; }
+
+    function resetForm() {
+      form.reset();
+      editingIndex = null;
+      saveButton.textContent = "Add update";
+      cancelButton.hidden = true;
+      document.querySelector("#form-heading").textContent = "Add an update";
+    }
+
+    function renderItems() {
+      itemsElement.replaceChildren();
+      if (items.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "note";
+        empty.textContent = "No updates yet. Add one with the form above.";
+        itemsElement.append(empty);
+        return;
+      }
+      items.forEach((item, index) => {
+        const article = document.createElement("article");
+        article.className = "item";
+        const meta = document.createElement("div");
+        meta.className = "item-meta";
+        meta.textContent = [item.date, item.category].filter(Boolean).join(" · ");
+        const title = document.createElement("h3");
+        title.textContent = item.title || "Untitled update";
+        const content = document.createElement("p");
+        content.textContent = item.content || "";
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "secondary";
+        edit.textContent = "Edit";
+        edit.addEventListener("click", () => beginEdit(index));
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "danger";
+        remove.textContent = "Delete";
+        remove.addEventListener("click", () => {
+          items.splice(index, 1);
+          if (editingIndex === index) resetForm();
+          else if (editingIndex !== null && editingIndex > index) editingIndex--;
+          renderItems();
+          setStatus("Update deleted. Download the file to save your changes.");
+        });
+        actions.append(edit, remove);
+        article.append(meta, title, content, actions);
+        itemsElement.append(article);
+      });
+    }
+
+    function beginEdit(index) {
+      const item = items[index];
+      editingIndex = index;
+      form.elements.title.value = item.title || "";
+      form.elements.date.value = item.date || "";
+      form.elements.category.value = item.category || "";
+      form.elements.content.value = item.content || "";
+      saveButton.textContent = "Save changes";
+      cancelButton.hidden = false;
+      document.querySelector("#form-heading").textContent = "Edit update";
+      document.querySelector("#title").focus();
+    }
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        const data = JSON.parse(await file.text());
+        if (!data || !Array.isArray(data.items)) throw new Error('The file must contain an "items" array.');
+        items = data.items.map(item => ({
+          title: String(item.title || ""),
+          date: String(item.date || ""),
+          category: String(item.category || ""),
+          content: String(item.content || "")
+        }));
+        resetForm();
+        renderItems();
+        setStatus(`Loaded ${items.length} ${items.length === 1 ? "update" : "updates"} from ${file.name}.`);
+      } catch (error) {
+        setStatus(`Could not open that feed file: ${error.message}`);
+      }
+    });
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const item = {
+        title: form.elements.title.value.trim(),
+        date: form.elements.date.value,
+        category: form.elements.category.value.trim(),
+        content: form.elements.content.value.trim()
+      };
+      if (editingIndex === null) items.push(item);
+      else items[editingIndex] = item;
+      resetForm();
+      renderItems();
+      setStatus("Changes are ready. Download the updated feed.json to save them.");
+    });
+
+    cancelButton.addEventListener("click", resetForm);
+    document.querySelector("#download").addEventListener("click", () => {
+      const data = JSON.stringify({ items }, null, 2) + "\n";
+      const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "feed.json";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setStatus("Downloaded feed.json. Replace the old file in your repository with this one to publish the changes.");
+    });
+
+    renderItems();
+  </script>
+</body>
+</html>
