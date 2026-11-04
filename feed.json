@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "title": "Spring Trail Walk",
+      "date": "2026-11-04",
+      "category": "Event",
+      "content": "Join us for a guided walk through the meadow and forest edge to spot early spring wildlife."
+    },
+    {
+      "title": "Volunteer Cleanup Day",
+      "date": "2026-11-11",
+      "category": "Community",
+      "content": "Help clear trails and improve the habitat around the lake before the weekend crowds arrive."
+    }
+  ]
+}

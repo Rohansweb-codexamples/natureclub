@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The latest news and updates from Nature Club.">
+  <meta name="theme-color" content="#245b3a">
+  <title>Nature Club | Updates</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #203328;
+      background: #f4f7f1;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+      padding: 3.5rem 1.25rem 2.5rem;
+      color: #fff;
+      background: linear-gradient(135deg, #245b3a, #43804c);
+    }
+    .header-inner, main { width: min(100% - 2rem, 760px); margin-inline: auto; }
+    header p { margin: .5rem 0 0; color: #e4f0e2; }
+    h1 { margin: 0; font-size: clamp(2rem, 7vw, 3rem); }
+    main { padding-block: 2rem 4rem; }
+    .feed-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    h2 { margin: 0; }
+    button {
+      border: 1px solid #245b3a;
+      border-radius: .6rem;
+      padding: .65rem .9rem;
+      color: #245b3a;
+      background: #fff;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button:hover { background: #eaf2e7; }
+    button:focus-visible { outline: 3px solid #d89c35; outline-offset: 3px; }
+    #status { min-height: 1.5rem; color: #53645a; }
+    .post {
+      margin-block: 1rem;
+      padding: 1.25rem;
+      border: 1px solid #dce5d9;
+      border-radius: .9rem;
+      background: #fff;
+      box-shadow: 0 3px 12px rgb(32 51 40 / 5%);
+    }
+    .post h3 { margin: .4rem 0; font-size: 1.3rem; }
+    .post p { margin: .75rem 0 0; line-height: 1.65; white-space: pre-wrap; }
+    .meta { display: flex; flex-wrap: wrap; gap: .5rem .8rem; color: #53645a; font-size: .9rem; }
+    .category { color: #245b3a; font-weight: 700; }
+    .empty, .error { padding: 1rem; border-radius: .7rem; background: #fff; }
+    .error { color: #8d2929; border: 1px solid #e8caca; }
+    footer { padding: 1.5rem 1rem; text-align: center; color: #53645a; font-size: .9rem; }
+    @media (max-width: 480px) {
+      .feed-heading { align-items: flex-start; }
+      button { padding: .55rem .7rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Nature Club</h1>
+      <p>News, events, and notes from outdoors.</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="feed-heading">
+      <h2>Latest updates</h2>
+      <button id="refresh" type="button">Refresh feed</button>
+    </div>
+    <p id="status" role="status" aria-live="polite">Loading updates…</p>
+    <section id="feed" aria-label="Nature Club updates"></section>
+  </main>
+
+  <footer>Updates are loaded from <code>feed.json</code>.</footer>
+
+  <script>
+    const feed = document.querySelector("#feed");
+    const status = document.querySelector("#status");
+    const refreshButton = document.querySelector("#refresh");
+
+    function formatDate(value) {
+      const date = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(date.getTime())) return value || "Date to be announced";
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: "long",
+        timeZone: "UTC"
+      }).format(date);
+    }
+
+    function renderPost(post) {
+      const article = document.createElement("article");
+      article.className = "post";
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const date = document.createElement("time");
+      date.dateTime = post.date || "";
+      date.textContent = formatDate(post.date);
+      meta.append(date);
+      if (post.category) {
+        const category = document.createElement("span");
+        category.className = "category";
+        category.textContent = post.category;
+        meta.append(category);
+      }
+
+      const title = document.createElement("h3");
+      title.textContent = post.title || "Untitled update";
+      const content = document.createElement("p");
+      content.textContent = post.content || "";
+      article.append(meta, title, content);
+      return article;
+    }
+
+    async function loadFeed() {
+      refreshButton.disabled = true;
+      status.textContent = "Loading updates…";
+      feed.replaceChildren();
+      try {
+        const response = await fetch(`feed.json?updated=${Date.now()}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Could not load feed.json (HTTP ${response.status}).`);
+        const data = await response.json();
+        if (!data || !Array.isArray(data.items)) {
+          throw new Error('feed.json must contain an "items" array.');
+        }
+        const posts = [...data.items].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+        if (posts.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.textContent = "No updates yet. Add the first one to feed.json!";
+          feed.append(empty);
+        } else {
+          feed.append(...posts.map(renderPost));
+        }
+        status.textContent = `${posts.length} ${posts.length === 1 ? "update" : "updates"}`;
+      } catch (error) {
+        const message = document.createElement("p");
+        message.className = "error";
+        message.textContent = `${error.message} If you opened this page directly, serve the folder with a local web server.`;
+        feed.append(message);
+        status.textContent = "Feed unavailable.";
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    refreshButton.addEventListener("click", loadFeed);
+    loadFeed();
+  </script>
+</body>
+</html>
